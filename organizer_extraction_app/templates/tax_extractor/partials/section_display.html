@@ -1,0 +1,23 @@
+{% comment %}
+Dynamic template partial for displaying any section's key-value pairs
+{% endcomment %}
+
+<div class="mb-6">
+    <h4 class="text-gray-800 mb-3 font-semibold">{{ section.title }}</h4>
+    
+    {% for item in section.items %}
+        <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+            {% if item.contribution_type %}
+                <p class="font-medium text-blue-600 mb-2">{{ item.contribution_type }}</p>
+            {% endif %}
+            
+            {% for key, value in item.items %}
+                {% if key != 'contribution_type' and value %}
+                    <p class="text-sm mb-1">
+                        <strong class="text-gray-600">{{ key }}:</strong> {{ value }}
+                    </p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endfor %}
+</div>

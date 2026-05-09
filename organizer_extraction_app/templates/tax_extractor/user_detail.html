@@ -1,0 +1,95 @@
+{% extends 'tax_extractor/base.html' %}
+{% block title %}User Details{% endblock %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ user_obj.get_full_name|default:user_obj.username }}</h1>
+        <p class="text-gray-600">@{{ user_obj.username }}</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="{% url 'user_edit' user_obj.id %}" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all no-underline">
+          Edit User
+        </a>
+        <a href="{% url 'user_list' %}" class="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition-all no-underline">
+          Back to List
+        </a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Email</p>
+        <p class="text-lg text-gray-800">{{ user_obj.email }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Role</p>
+        <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold
+          {% if user_obj.profile.role == 'admin' %}bg-purple-500 text-white
+          {% elif user_obj.profile.role == 'tax_preparer' %}bg-blue-500 text-white
+          {% else %}bg-gray-500 text-white
+          {% endif %}">
+          {{ user_obj.profile.get_role_display }}
+        </span>
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Status</p>
+        {% if user_obj.is_active and user_obj.profile.is_active %}
+          <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-green-100 text-green-700">
+            ● Active
+          </span>
+        {% else %}
+          <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-red-100 text-red-700">
+            ● Inactive
+          </span>
+        {% endif %}
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Joined</p>
+        <p class="text-lg text-gray-800">{{ user_obj.date_joined|date:"F d, Y" }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Last Login</p>
+        <p class="text-lg text-gray-800">{{ user_obj.last_login|date:"F d, Y H:i"|default:"Never" }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm font-semibold text-gray-500 mb-1">Total Documents</p>
+        <p class="text-lg text-gray-800">{{ total_documents }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Documents -->
+  {% if documents %}
+  <div class="bg-white rounded-xl shadow-lg p-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Recent Documents</h2>
+    <div class="space-y-3">
+      {% for doc in documents %}
+      <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+        <div>
+          <p class="font-semibold text-gray-800">{{ doc.get_display_name }}</p>
+          <p class="text-sm text-gray-600">{{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+        </div>
+        <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold
+          {% if doc.status == 'completed' %}bg-green-500 text-white
+          {% elif doc.status == 'processing' %}bg-blue-500 text-white
+          {% elif doc.status == 'pending' %}bg-yellow-500 text-white
+          {% else %}bg-red-500 text-white
+          {% endif %}">
+          {{ doc.get_status_display }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

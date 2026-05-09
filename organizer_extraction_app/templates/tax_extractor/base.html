@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}Tax Form Extractor{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gradient-to-br from-blue-50 to-white min-h-screen text-gray-800">
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+      <div class="max-w-6xl mx-auto px-8 py-4 flex justify-between items-center">
+        <a href="{% url 'document_list' %}" class="flex items-center gap-3 text-2xl font-bold text-blue-600 no-underline">
+          <span>Virtue - CPA Automation</span>
+          {% if taxpayer_name %}
+            <span class="ml-3 text-gray-600 text-lg font-semibold">({{ taxpayer_name }})</span>
+          {% endif %}
+        </a>
+        <nav class="flex gap-6 items-center">
+          <a href="{% url 'document_list' %}" class="text-gray-600 no-underline font-medium px-4 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition-all">My Documents</a>
+          <a href="{% url 'upload_document' %}" class="text-gray-600 no-underline font-medium px-4 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition-all">Upload New</a>
+          {% if user.is_authenticated %}
+          <div class="flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-lg">
+            <span>👤 {{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="bg-transparent border-0 text-red-500 cursor-pointer font-inherit p-0 hover:text-red-600">
+                    Logout
+                </button>
+            </form>
+          </div>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto my-8 px-8">{% block content %}{% endblock %}</main>
+
+    <footer class="text-center py-8 text-gray-600 mt-16">
+      <p>&copy; Tax Form Extractor. Digiqt Technolabs</p>
+    </footer>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+        
+        function fetchWithCSRF(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['X-CSRFToken'] = csrftoken;
+            return fetch(url, options);
+        }
+
+        if (typeof XMLHttpRequest !== 'undefined') {
+            const originalOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+                this.addEventListener('readystatechange', function() {
+                    if (this.readyState === 1) {
+                        this.setRequestHeader('X-CSRFToken', csrftoken);
+                    }
+                });
+                return originalOpen.apply(this, arguments);
+            };
+        }
+    </script>
+  </body>
+</html>

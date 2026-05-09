@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Form OCR Extractor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#1e40af',
+                        success: '#10b981',
+                        accent: '#3b82f6',
+                        dark: '#1e293b',
+                        light: '#f5f8ff'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .file-item {
+            transition: all 0.2s ease;
+        }
+        .file-item:hover {
+            transform: translateX(5px);
+        }
+        .result-card:hover {
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+            transform: translateY(-2px);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-light min-h-screen flex items-center justify-center p-4 md:p-10">
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-6 md:p-8 transition-all duration-300">
+        <header class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-secondary mb-2">Tax Form OCR Extractor</h1>
+            <p class="text-gray-600">Upload a folder containing IRS form PDFs to extract and organize them automatically.</p>
+        </header>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="p-4 rounded-xl border border-green-100 bg-green-50">
+                <div class="text-sm uppercase text-green-600 font-semibold">Sorted</div>
+                <div id="sortedCount" class="text-3xl font-bold text-green-700 mt-2">0</div>
+            </div>
+            <div class="p-4 rounded-xl border border-red-100 bg-red-50">
+                <div class="text-sm uppercase text-red-600 font-semibold">Unsorted</div>
+                <div id="unsortedCount" class="text-3xl font-bold text-red-700 mt-2">0</div>
+            </div>
+        </div>
+        <div id="statsUpdatedAt" class="text-right text-xs text-gray-500 mb-6">Last updated: --</div>
+
+        <!-- <div class="bg-blue-50 border-l-4 border-accent rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-accent mt-1 mr-2"></i>
+                <div>
+                    <h3 class="font-semibold text-secondary mb-2">How it works</h3>
+                    <ol class="list-decimal list-inside text-sm text-gray-700 space-y-1">
+                        <li>Click the button below to select a folder containing PDF files</li>
+                        <li>Each form is identified and organized into folders by form type</li>
+                        <li>Files are renamed as: <span class="font-medium">Payer(Recipient)-FormNumber.pdf</span></li>
+                        <li>All forms are combined into a single PDF in IRS form order</li>
+                        <li>Download the combined PDF binder with all organized forms</li>
+                    </ol>
+                </div>
+            </div>
+        </div> -->
+
+        <div id="uploadSection" class="border-2 border-dashed border-accent rounded-xl p-8 text-center bg-blue-50 cursor-pointer transition-all hover:bg-blue-100 hover:border-primary">
+            <div class="text-5xl text-primary mb-4">📁</div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Select a folder containing your PDF forms</h3>
+            <p class="text-gray-600 text-sm mb-6">Supports W-2, 1099, 1098, and other IRS forms</p>
+            <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+            <button id="uploadBtn" class="bg-primary hover:bg-secondary text-white font-semibold py-3 px-6 rounded-lg transition duration-300 shadow-md hover:shadow-lg">
+                Choose Folder
+            </button>
+            
+            <div id="folderInfo" class="mt-6 hidden">
+                <div id="folderName" class="text-lg font-semibold text-secondary mb-2"></div>
+                <div id="pdfCount" class="text-gray-700 mb-4"></div>
+                <div id="fileList" class="max-h-48 overflow-y-auto bg-white rounded-lg p-3 border border-gray-200"></div>
+            </div>
+        </div>
+
+        <button id="processBtn" class="w-full mt-6 bg-success hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 shadow-md hover:shadow-lg hidden">
+            Process All Forms
+        </button>
+
+        <div id="progressSection" class="mt-6 hidden">
+            <div class="h-2 bg-blue-100 rounded-full overflow-hidden">
+                <div id="progressFill" class="h-full bg-primary rounded-full w-0"></div>
+            </div>
+            <div id="loadingText" class="text-center text-primary font-semibold mt-2">Processing your tax forms...</div>
+        </div>
+
+        <div id="error" class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 hidden"></div>
+
+        <div id="results" class="mt-10 hidden fade-in">
+            <div class="bg-gradient-to-r from-primary to-secondary rounded-2xl text-white p-6 mb-8">
+                <div class="text-center">
+                    <div class="text-3xl mb-2">✅</div>
+                    <h2 class="text-2xl font-bold mb-4">Processing Complete</h2>
+                    <div class="flex flex-col sm:flex-row justify-center gap-6">
+                        <div class="text-lg">
+                            Total Files: <span id="totalFiles" class="font-bold">0</span>
+                        </div>
+                        <div class="text-lg">
+                            Processed: <span id="processedFiles" class="font-bold">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-success rounded-xl text-white p-6 mb-8 text-center">
+                <h3 class="text-xl font-semibold mb-2">Download Client Binder</h3>
+                <p class="opacity-90 mb-4">Combined PDF binder with organized forms saved in media folder</p>
+                <button id="downloadBtn" class="bg-white text-success hover:bg-green-50 font-semibold py-2 px-6 rounded-lg transition duration-300">
+                    Download Binder PDF
+                </button>
+                <div id="clientInfo" class="mt-3 text-sm opacity-80"></div>
+            </div>
+
+            <div id="requirementsCard" class="bg-white border border-gray-200 rounded-xl p-5 mb-8 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-semibold text-secondary">Required Forms Checklist</h3>
+                    <span id="requirementsUpdatedAt" class="text-xs text-gray-500"></span>
+                </div>
+                <p id="requirementsSubtitle" class="text-sm text-gray-600 mb-4"></p>
+                <div id="requirementsList" class="grid gap-2"></div>
+            </div>
+
+            <h3 class="text-xl font-semibold text-secondary mb-4">Processing Results:</h3>
+            <div id="resultsGrid" class="grid gap-4"></div>
+
+            <button id="resetBtn" class="w-full mt-8 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300">
+                Process Another Folder
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const uploadBtn = document.getElementById("uploadBtn");
+        const processBtn = document.getElementById("processBtn");
+        const resetBtn = document.getElementById("resetBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const folderInput = document.getElementById("folderInput");
+        const folderInfo = document.getElementById("folderInfo");
+        const folderName = document.getElementById("folderName");
+        const pdfCount = document.getElementById("pdfCount");
+        const fileList = document.getElementById("fileList");
+        const uploadSection = document.getElementById("uploadSection");
+        const progressSection = document.getElementById("progressSection");
+        const progressFill = document.getElementById("progressFill");
+        const loadingText = document.getElementById("loadingText");
+        const results = document.getElementById("results");
+        const resultsGrid = document.getElementById("resultsGrid");
+        const errorDiv = document.getElementById("error");
+        const totalFilesSpan = document.getElementById("totalFiles");
+        const processedFilesSpan = document.getElementById("processedFiles");
+        const sortedCountEl = document.getElementById("sortedCount");
+        const unsortedCountEl = document.getElementById("unsortedCount");
+        const statsUpdatedAtEl = document.getElementById("statsUpdatedAt");
+        const requirementsCard = document.getElementById("requirementsCard");
+        const requirementsList = document.getElementById("requirementsList");
+        const requirementsSubtitle = document.getElementById("requirementsSubtitle");
+        const requirementsUpdatedAt = document.getElementById("requirementsUpdatedAt");
+
+        let selectedPDFFiles = [];
+        let selectedFolderName = "";
+        let downloadUrl = "";
+
+        function updateStatsDisplay(statsData) {
+            const sortedValue = statsData && typeof statsData.sorted_count === "number" ? statsData.sorted_count : 0;
+            const unsortedValue = statsData && typeof statsData.unsorted_count === "number" ? statsData.unsorted_count : 0;
+            sortedCountEl.textContent = sortedValue;
+            unsortedCountEl.textContent = unsortedValue;
+
+            if (statsData && statsData.updated_at) {
+                const updatedDate = new Date(statsData.updated_at);
+                statsUpdatedAtEl.textContent = `Last updated: ${updatedDate.toLocaleString()}`;
+            } else {
+                statsUpdatedAtEl.textContent = "Last updated: --";
+            }
+        }
+
+        async function loadProcessingStats(prefetchedStats = null) {
+            if (prefetchedStats) {
+                updateStatsDisplay(prefetchedStats);
+                return;
+            }
+
+            try {
+                const response = await fetch("/forms/stats/");
+                if (!response.ok) {
+                    throw new Error("Failed to fetch stats");
+                }
+                const data = await response.json();
+                updateStatsDisplay(data);
+            } catch (error) {
+                console.warn("Unable to load processing stats", error);
+            }
+        }
+
+        function renderClientSummary(summary) {
+            if (!summary || !summary.forms_required || Object.keys(summary.forms_required).length === 0) {
+                requirementsCard.classList.add("hidden");
+                requirementsList.innerHTML = "";
+                requirementsSubtitle.textContent = "";
+                requirementsUpdatedAt.textContent = "";
+                return;
+            }
+
+            const clientLabel = summary.client_display_name || summary.client_name || "Client";
+            requirementsSubtitle.textContent = `Organizer checklist for ${clientLabel}`;
+            if (summary.last_updated) {
+                const updatedDate = new Date(summary.last_updated);
+                requirementsUpdatedAt.textContent = `Last updated: ${updatedDate.toLocaleString()}`;
+            } else {
+                requirementsUpdatedAt.textContent = "";
+            }
+
+            const formsDetail = summary.forms_detail || {};
+            const items = Object.entries(summary.forms_required).map(([formNumber, count]) => {
+                const detailItems = (formsDetail[formNumber] || []).slice(0, 3);
+                const detailList = detailItems.length
+                    ? `<ul class="mt-2 text-sm text-gray-600 list-disc list-inside">
+                        ${detailItems.map(item => `<li>${item.payer_name || item.employer_name || item.business_name || 'Entry'}</li>`).join('')}
+                       </ul>`
+                    : '';
+
+                return `
+                    <div class="border border-gray-100 rounded-lg p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-secondary">${formNumber}</span>
+                            <span class="text-sm text-gray-600">${count} required</span>
+                        </div>
+                        ${detailList}
+                    </div>
+                `;
+            }).join("");
+
+            requirementsList.innerHTML = items;
+            requirementsCard.classList.remove("hidden");
+        }
+
+        // Upload button click
+        uploadBtn.onclick = () => folderInput.click();
+
+        // Click upload section to select folder
+        uploadSection.addEventListener("click", (e) => {
+            if (e.target !== uploadBtn && !folderInfo.contains(e.target)) {
+                folderInput.click();
+            }
+        });
+
+        // Folder selection
+        folderInput.onchange = (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            // Filter PDF files only
+            const pdfFiles = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            
+            if (pdfFiles.length === 0) {
+                showError("No PDF files found in the selected folder");
+                return;
+            }
+
+            selectedPDFFiles = pdfFiles;
+            
+            // Get folder name from the first file's path
+            if (files[0].webkitRelativePath) {
+                selectedFolderName = files[0].webkitRelativePath.split('/')[0];
+            } else {
+                selectedFolderName = "Selected Folder";
+            }
+
+            displayFolderInfo();
+            processBtn.classList.remove("hidden");
+            errorDiv.classList.add("hidden");
+            results.classList.add("hidden");
+        };
+
+        function displayFolderInfo() {
+            folderName.textContent = `📁 Folder: ${selectedFolderName}`;
+            pdfCount.textContent = `Found ${selectedPDFFiles.length} PDF file(s)`;
+            
+            fileList.innerHTML = "";
+            
+            selectedPDFFiles.forEach((file, index) => {
+                const fileItem = document.createElement("div");
+                fileItem.className = "file-item flex items-center p-2 bg-blue-50 rounded mb-2";
+                fileItem.innerHTML = `
+                    <span class="mr-2">📄</span>
+                    <span class="truncate">${file.name}</span>
+                `;
+                fileList.appendChild(fileItem);
+            });
+
+            folderInfo.classList.remove("hidden");
+        }
+
+        // Drag and drop for folders
+        uploadSection.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            uploadSection.classList.add("border-secondary", "bg-blue-100");
+        });
+
+        uploadSection.addEventListener("dragleave", () => {
+            uploadSection.classList.remove("border-secondary", "bg-blue-100");
+        });
+
+        uploadSection.addEventListener("drop", (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove("border-secondary", "bg-blue-100");
+            
+            const items = e.dataTransfer.items;
+            
+            if (items) {
+                // Handle folder drop
+                const files = [];
+                const promises = [];
+                
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i].webkitGetAsEntry();
+                    if (item) {
+                        promises.push(traverseFileTree(item, files));
+                    }
+                }
+                
+                Promise.all(promises).then(() => {
+                    const pdfFiles = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+                    
+                    if (pdfFiles.length > 0) {
+                        selectedPDFFiles = pdfFiles;
+                        selectedFolderName = "Dropped Folder";
+                        displayFolderInfo();
+                        processBtn.classList.remove("hidden");
+                        errorDiv.classList.add("hidden");
+                        results.classList.add("hidden");
+                    } else {
+                        showError("No PDF files found in the dropped folder");
+                    }
+                });
+            }
+        });
+
+        // Traverse file tree for drag and drop
+        function traverseFileTree(item, files) {
+            return new Promise((resolve) => {
+                if (item.isFile) {
+                    item.file((file) => {
+                        files.push(file);
+                        resolve();
+                    });
+                } else if (item.isDirectory) {
+                    const dirReader = item.createReader();
+                    dirReader.readEntries((entries) => {
+                        const promises = [];
+                        for (let i = 0; i < entries.length; i++) {
+                            promises.push(traverseFileTree(entries[i], files));
+                        }
+                        Promise.all(promises).then(resolve);
+                    });
+                }
+            });
+        }
+
+        // Process button click
+        processBtn.onclick = async () => {
+            if (selectedPDFFiles.length === 0) return;
+
+            const formData = new FormData();
+            selectedPDFFiles.forEach(file => {
+                formData.append("pdf_files", file);
+            });
+
+            progressSection.classList.remove("hidden");
+            progressFill.style.width = "0%";
+            processBtn.disabled = true;
+            uploadBtn.disabled = true;
+            errorDiv.classList.add("hidden");
+            results.classList.add("hidden");
+
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progress >= 90) {
+                    clearInterval(progressInterval);
+                }
+                progressFill.style.width = progress + "%";
+            }, 200);
+
+            try {
+                const response = await fetch("/forms/upload/", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                clearInterval(progressInterval);
+                progressFill.style.width = "100%";
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayResults(data);
+                }
+            } catch (error) {
+                clearInterval(progressInterval);
+                showError("An error occurred while processing the forms: " + error.message);
+            } finally {
+                setTimeout(() => {
+                    progressSection.classList.add("hidden");
+                    progressFill.style.width = "0%";
+                }, 500);
+                processBtn.disabled = false;
+                uploadBtn.disabled = false;
+            }
+        };
+
+        // Display results
+        function displayResults(data) {
+            totalFilesSpan.textContent = data.total_files;
+            processedFilesSpan.textContent = data.processed_files;
+            downloadUrl = data.download_url;
+            
+            // Display client info
+            const clientInfo = document.getElementById("clientInfo");
+            if (data.client_name) {
+                clientInfo.textContent = `Client: ${data.client_name} | Organized forms saved in: ${data.organized_folder}`;
+            }
+
+            resultsGrid.innerHTML = "";
+
+            data.results.forEach(result => {
+                const card = createResultCard(result);
+                resultsGrid.appendChild(card);
+            });
+
+            results.classList.remove("hidden");
+            loadProcessingStats(data.processing_stats);
+            renderClientSummary(data.client_summary);
+
+            setTimeout(() => {
+                results.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 100);
+        }
+
+        function createResultCard(result) {
+            const card = document.createElement("div");
+            card.className = `result-card rounded-xl p-5 border-l-4 transition-all duration-200 ${
+                result.success 
+                    ? 'bg-white border-green-500 shadow-sm' 
+                    : 'bg-white border-red-500 shadow-sm'
+            }`;
+            
+            if (result.success) {
+                const data = result.extracted_data;
+                const payerName = data.payer_name || data.employer_name || 'N/A';
+                const recipientName = data.recipient_name || data.employee_name || 'N/A';
+                
+                card.innerHTML = `
+                    <div class="flex flex-wrap justify-between items-start mb-4">
+                        <div class="font-semibold text-gray-800 truncate mb-2">
+                            <i class="far fa-file-pdf text-red-500 mr-2"></i>
+                            ${result.filename}
+                        </div>
+                        <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                            ${result.detected_form}
+                        </span>
+                    </div>
+                    <div class="text-green-600 font-medium mb-4">
+                        <div class="mb-1"><i class="fas fa-folder-open mr-2"></i> Organized in folder: ${result.folder || 'N/A'}</div>
+                        <div><i class="fas fa-file-alt mr-2"></i> ${result.included_in_binder ? 'Added to binder as: ' + result.new_filename : 'Moved to unsorted (not in binder): ' + result.new_filename}</div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-gray-600 text-sm">Form Type:</div>
+                            <div class="font-semibold">${data.form_type || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-600 text-sm">Tax Year:</div>
+                            <div class="font-semibold">${data.tax_year || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-600 text-sm">Payer/Employer:</div>
+                            <div class="font-semibold">${payerName}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-600 text-sm">Recipient/Employee:</div>
+                            <div class="font-semibold">${recipientName}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="flex flex-wrap justify-between items-start mb-4">
+                        <div class="font-semibold text-gray-800 truncate">
+                            <i class="far fa-file-pdf text-red-500 mr-2"></i>
+                            ${result.filename}
+                        </div>
+                    </div>
+                    <div class="text-red-600 font-medium">
+                        <i class="fas fa-exclamation-triangle mr-2"></i> Error: ${result.error}
+                    </div>
+                `;
+            }
+            
+            return card;
+        }
+
+        // Download button
+        downloadBtn.onclick = () => {
+            if (downloadUrl) {
+                window.location.href = downloadUrl;
+            }
+        };
+
+        function showError(message) {
+            errorDiv.textContent = "❌ Error: " + message;
+            errorDiv.classList.remove("hidden");
+        }
+
+        // Reset button
+        resetBtn.onclick = () => {
+            selectedPDFFiles = [];
+            selectedFolderName = "";
+            folderInput.value = "";
+            folderInfo.classList.add("hidden");
+            processBtn.classList.add("hidden");
+            results.classList.add("hidden");
+            errorDiv.classList.add("hidden");
+            downloadUrl = "";
+            requirementsCard.classList.add("hidden");
+            requirementsList.innerHTML = "";
+        };
+
+        loadProcessingStats();
+    </script>
+</body>
+</html>

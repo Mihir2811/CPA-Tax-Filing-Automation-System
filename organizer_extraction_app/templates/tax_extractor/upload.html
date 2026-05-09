@@ -1,0 +1,143 @@
+{% extends 'tax_extractor/base.html' %}
+{% block title %}Upload Tax Document{% endblock %}
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg p-8" id="mainContent">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">Upload Tax Document</h1>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="uploadForm">
+    {% csrf_token %}
+
+    <div class="mb-6">
+      <label class="block mb-2 font-semibold text-gray-800" for="pdf_files">Select PDF Files</label>
+      <div class="border-3 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition-all bg-gray-50 hover:border-blue-600 hover:bg-blue-50" onclick="document.getElementById('pdf_files').click()">
+        <div class="text-5xl text-blue-600 mb-4">📁</div>
+        <p class="text-lg font-semibold text-gray-800 mb-2">
+          Click to upload or drag and drop
+        </p>
+        <p class="text-gray-600">PDF files only (multiple files supported)</p>
+        <div id="fileList" class="text-blue-600 font-semibold mt-4"></div>
+      </div>
+      <input
+        type="file"
+        id="pdf_files"
+        name="pdf_files"
+        accept=".pdf"
+        multiple
+        required
+        class="hidden"
+        onchange="showFileNames()"
+      />
+    </div>
+
+    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all">
+      <span>Upload and Process</span>
+    </button>
+  </form>
+
+  <!-- Upload Progress -->
+  <div id="uploadProgress" class="hidden mt-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Upload Progress</h3>
+    <div id="progressList" class="space-y-2"></div>
+  </div>
+</div>
+
+
+
+{% if error %}
+<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+  {{ error }}
+</div>
+{% endif %}
+
+<style>
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  .blurred {
+    filter: blur(5px);
+    pointer-events: none;
+  }
+  .w-15 { width: 60px; }
+  .h-15 { height: 60px; }
+  .border-6 { border-width: 6px; }
+</style>
+
+<script>
+  function showFileNames() {
+    const input = document.getElementById("pdf_files");
+    const fileListDisplay = document.getElementById("fileList");
+    if (input.files.length > 0) {
+      const fileNames = Array.from(input.files).map(file => `✓ ${file.name}`).join('<br>');
+      fileListDisplay.innerHTML = `Selected ${input.files.length} file(s):<br>${fileNames}`;
+    }
+  }
+
+  // Handle form submit with AJAX for multiple files
+  document.getElementById("uploadForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const files = document.getElementById("pdf_files").files;
+    
+    if (files.length === 0) {
+      alert('Please select at least one PDF file.');
+      return;
+    }
+    
+    // Show progress section
+    document.getElementById("uploadProgress").classList.remove("hidden");
+    const progressList = document.getElementById("progressList");
+    progressList.innerHTML = '';
+    
+    // Create progress items for each file
+    Array.from(files).forEach((file, index) => {
+      const progressItem = document.createElement('div');
+      progressItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+      progressItem.innerHTML = `
+        <span class="font-medium">${file.name}</span>
+        <span class="px-3 py-1 bg-blue-500 text-white text-sm rounded-full">Uploading...</span>
+      `;
+      progressList.appendChild(progressItem);
+    });
+    
+    // Submit form
+    fetch(this.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update progress items to show success
+        const items = progressList.children;
+        Array.from(items).forEach(item => {
+          const statusSpan = item.querySelector('span:last-child');
+          statusSpan.className = 'px-3 py-1 bg-green-500 text-white text-sm rounded-full';
+          statusSpan.textContent = 'Uploaded - Processing...';
+        });
+        
+        // Redirect to document list after a short delay
+        setTimeout(() => {
+          window.location.href = '/tax/';
+        }, 2000);
+      } else {
+        alert('Upload failed: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Upload failed: ' + error.message);
+    });
+  });
+</script>
+{% endblock %}

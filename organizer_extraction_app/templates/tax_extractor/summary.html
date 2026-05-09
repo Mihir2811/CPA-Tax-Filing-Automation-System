@@ -1,0 +1,188 @@
+{% extends 'tax_extractor/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Tax Summary - {{ document.file_name }}{% endblock %}
+
+{% block content %}
+<div class="bg-green-50 border-l-4 border-green-500 p-6 mb-6 flex items-center gap-3">
+    <span class="text-2xl">📄</span>
+    <div>
+        <strong class="text-green-800">Tax Document Summary</strong>
+        <p class="mt-1 text-green-700">{{ document.file_name }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-lg p-8">
+    <h2 class="text-3xl font-bold mb-3 text-gray-800">Summary Report</h2>
+    <p class="text-gray-600 mb-6">Client email preview (Virtue CPAs format)</p>
+
+    <div id="summaryContent">
+        <p>Dear {{ summary_data.taxpayer|default:"Client" }},</p>
+        <p>Greetings from Team Virtue CPAs & Advisors.</p>
+        <p>This email is in regard to your Individual Tax Return preparation for the <strong>{{ summary_data.tax_year }}</strong> tax year.</p>
+
+        <hr class="my-6">
+
+        <h3 class="font-semibold mb-2">Important Instructions</h3>
+        <ul class="list-disc ml-6 mb-4">
+            <li>This is a system-generated email; no one is monitoring this inbox.</li>
+            <li>Please do not reply or attach files.</li>
+            <li>All documents must be uploaded through your TaxDome client portal.</li>
+        </ul>
+
+        <p>👉 Login here:<br>
+            <a class="text-blue-600" href="https://app.taxdome.com/en-int/">https://app.taxdome.com/en-int/</a>
+        </p>
+
+        <p>Support:<br>
+            <a class="text-blue-600" href="mailto:support@virtuecpas.com">support@virtuecpas.com</a>
+        </p>
+
+        <hr class="my-6">
+
+        <h3 class="font-semibold">{{ summary_data.tax_year }} Individual Tax Return – Document Checklist</h3>
+        <p class="mb-4">Below is a categorized list of uploaded documents:</p>
+
+        <!-- PERSONAL INFORMATION -->
+        <h4 class="font-semibold underline mt-6">1. Personal Information</h4>
+        <ul class="list-disc ml-6 mb-4">
+            <li>Taxpayer: {{ summary_data.taxpayer }}</li>
+            {% if summary_data.spouse %}<li>Spouse: {{ summary_data.spouse }}</li>{% endif %}
+        </ul>
+
+        <!-- INCOME DOCUMENTS -->
+        <h4 class="font-semibold underline mt-6">2. Income Documents</h4>
+        <ul class="list-disc ml-6 mb-4">
+            {% for item in summary_data.wages_and_employment %}
+                <li><strong>W-2 Wages</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.employer_name }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.interest_income %}
+                <li><strong>Interest Income (1099-INT)</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.dividend_income %}
+                <li><strong>Dividend Income (1099-DIV)</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.brokerage_statement_details %}
+                <li><strong>Brokerage Statement</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }} (Account {{ item.account_number }})</li>
+            {% endfor %}
+
+            {% for item in summary_data.partnership_income %}
+                <li><strong>Partnership K-1</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.entity_name }} (EIN {{ item.employer_id }})</li>
+            {% endfor %}
+
+            {% for item in summary_data.s_corp_income %}
+                <li><strong>S-Corp K-1</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.entity_name }} (EIN {{ item.employer_id }})</li>
+            {% endfor %}
+
+            {% for item in summary_data.social_security_benefits %}
+                <li><strong>Social Security Benefits (SSA-1099)</strong> – {{ item.owner|hide_tsj_not_specified }} – Benefits: ${{ item.benefits_received }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.rental_and_royalty_expenses %}
+                <li><strong>Rental Expense</strong> – {{ item.description }} – ${{ item.amount }} ({{ item.location_of_property }})</li>
+            {% endfor %}
+
+            {% for item in summary_data.rental_and_royalty_property_equipment %}
+                <li><strong>Rental Property</strong> – {{ item.description }}{% if item.amount %} – ${{ item.amount }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+
+        <!-- DEDUCTIONS & CREDITS -->
+        <h4 class="font-semibold underline mt-6">3. Deductions & Credits</h4>
+        <ul class="list-disc ml-6 mb-4">
+            {% for item in summary_data.mortgage_interest %}
+                <li><strong>Mortgage Interest (1098)</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.paid_to }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.itemized_deductions_medical_taxes %}
+                <li><strong>{{ item.type }}</strong> – {{ item.description }} – ${{ item.amount }}</li>
+            {% endfor %}
+
+            {% for item in summary_data.contributions %}
+                <li><strong>Charitable Contribution</strong> – {{ item.owner|hide_tsj_not_specified }} – {{ item.organization_description }}</li>
+            {% endfor %}
+        </ul>
+
+        <!-- Investments, Retirement & Miscellaneous -->
+        <h4 class="font-semibold underline mt-6">4. Investments, Retirement & Miscellaneous</h4>
+        <ul class="list-disc ml-6 mb-4">
+
+            {# Retirement Contributions #}
+            {% for item in summary_data.retirement_contributions %}
+                <li>
+                    <strong>Retirement Contribution</strong> –
+                    {{ item.owner }} – {{ item.plan_type }} – ${{ item.amount }}
+                </li>
+            {% endfor %}
+
+            {# Health Savings Account (HSA) #}
+            {% for item in summary_data.health_savings_account %}
+                <li>
+                    <strong>Health Savings Account (HSA)</strong> –
+                    {{ item.owner }} – {{ item.plan_type }} – ${{ item.amount }}
+                </li>
+            {% endfor %}
+
+            {# Other Tax Forms (merged from first block) #}
+            {% for section in summary_data.sections %}
+                {% if section.key == "other_tax_forms" %}
+                    {% for item in section.items %}
+                        <li>
+                            <strong>{{ section.title }}</strong> –
+                            {{ item.owner }} – {{ item.nature_source }}
+                        </li>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+
+        </ul>
+
+
+        <!-- CUSTOM REQUIREMENTS -->
+        {% if summary_data.custom_fields %}
+        <h4 class="font-semibold underline mt-6">5. Additional Requirements</h4>
+        <ul class="list-disc ml-6 mb-4">
+            {% for item in summary_data.custom_fields %}
+                <li><strong>{{ item.name }}</strong> – {{ item.value }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <p class="mt-6">Once all required documents are uploaded, our team will begin preparing your {{ summary_data.tax_year }} tax return.</p>
+
+        <p>Thank you for choosing Virtue CPAs & Advisors.</p>
+
+        <p class="mt-4">
+            <strong>Jeet Chaudhary</strong><br>
+            COO<br>
+            407-495-6829<br>
+            Jeetc@virtuecpas.com<br>
+            11675 Rainwater Drive, Suite 150, Alpharetta, GA 30009
+        </p>
+    </div>
+</div>
+
+{% if summary_data.custom_fields %}
+<h3 class="text-xl font-bold mt-4">Custom Fields</h3>
+<ul>
+    {% for item in summary_data.custom_fields %}
+        <li><b>{{ item.name }}</b>: {{ item.value }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+
+
+<div class="flex justify-center gap-4 mt-8">
+    <a href="{% url 'view_results' document.id %}" class="px-6 py-3 border-2 text-blue-600 border-blue-600 rounded-lg hover:bg-blue-50 no-underline">
+        View Detailed Results
+    </a>
+    <a href="{% url 'document_list' %}" class="px-6 py-3 border-2 text-blue-600 border-blue-600 rounded-lg hover:bg-blue-50 no-underline">
+        ← Back to Documents
+    </a>
+</div>
+
+{% endblock %}

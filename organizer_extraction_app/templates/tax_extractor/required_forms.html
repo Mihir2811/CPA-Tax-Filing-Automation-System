@@ -1,0 +1,100 @@
+{% extends 'tax_extractor/base.html' %}
+
+{% block title %}Required Forms - {{ document.get_display_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-list-check me-2"></i>
+                        Required Forms - {{ document.get_display_name }}
+                    </h4>
+                    <div>
+                        <a href="{% url 'view_results' document.id %}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Results
+                        </a>
+                        <button onclick="downloadRequiredForms()" class="btn btn-primary btn-sm">
+                            <i class="fas fa-download me-1"></i>Download
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if required_forms and required_forms.forms_list %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This list shows all the tax forms and documents that need to be collected based on the extracted data.
+                        </div>
+                        
+                        <div class="bg-light p-3 rounded">
+                            <pre id="forms-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0;">{{ required_forms.forms_list }}</pre>
+                        </div>
+                        
+                        <div class="mt-3 text-muted small">
+                            <i class="fas fa-clock me-1"></i>
+                            Generated: {{ required_forms.generated_at|date:"M d, Y H:i" }}
+                            {% if required_forms.updated_at != required_forms.generated_at %}
+                                | Updated: {{ required_forms.updated_at|date:"M d, Y H:i" }}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No required forms have been generated yet. This may be because:
+                            <ul class="mb-0 mt-2">
+                                <li>The document hasn't been fully processed</li>
+                                <li>No summary data is available</li>
+                                <li>There was an error generating the forms list</li>
+                            </ul>
+                        </div>
+                        
+                        <button onclick="regenerateRequiredForms()" class="btn btn-primary">
+                            <i class="fas fa-refresh me-1"></i>Generate Required Forms
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function downloadRequiredForms() {
+    const content = document.getElementById('forms-content').textContent;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ document.get_display_name }}_required_forms.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function regenerateRequiredForms() {
+    // This would trigger a regeneration of required forms
+    fetch(`{% url 'regenerate_required_forms' document.id %}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while regenerating required forms.');
+    });
+}
+</script>
+{% endblock %}

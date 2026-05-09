@@ -1,0 +1,341 @@
+{% load static %}
+{% load custom_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Individual Tax Return – Document Checklist</title>
+</head>
+
+<body style="font-family: Arial, sans-serif; line-height: 1.6; font-size: 14px; color: #333;">
+
+    <!-- Greeting -->
+    <p>Dear {{ recipient_name }},</p>
+
+    <p>Greetings from Team Virtue CPAs &amp; Advisors.</p>
+
+    <p>
+        This email is in regard to your Individual Tax Return preparation
+        for the <strong>{{ summary_data.tax_year }}</strong> tax year.
+    </p>
+
+    <hr style="border-top: 1px solid #ccc; margin: 20px 0;">
+
+    <!-- Instructions -->
+    <h3 style="margin-bottom: 8px;">Important Instructions</h3>
+
+    <ul style="margin-left: 18px;">
+        <li>This is a system-generated email; no one is monitoring this inbox.</li>
+        <li>Please do not reply, attach files, or send documents to this email.</li>
+        <li>All tax documents must be uploaded through your TaxDome client portal.</li>
+    </ul>
+
+    <p>
+        👉 Login to your TaxDome account:
+        <br><a href="https://app.taxdome.com/en-int/login">https://app.taxdome.com/en-int/login</a>
+    </p>
+
+    <p>
+        If you face any issues accessing your account or uploading documents,
+        please contact our support team at:<br>
+        <a href="mailto:support@virtuecpas.com">support@virtuecpas.com</a>
+    </p>
+
+    <hr style="border-top: 1px solid #ccc; margin: 20px 0;">
+
+    <!-- Checklist Header -->
+    <h3>{{ summary_data.tax_year }} Individual Tax Return – Document Checklist</h3>
+    <p>Below is a categorized list of uploaded documents:</p>
+
+
+
+    <!-- ============================================================ -->
+    <!-- 1. PERSONAL INFORMATION -->
+    <!-- ============================================================ -->
+    <h4 style="margin-top: 20px; text-decoration: underline;">1. Personal Information</h4>
+
+    <ul style="margin-left: 18px;">
+        <li>Updated address, phone number, and email (if changed)</li>
+        <li>Social Security numbers for taxpayer, spouse, and dependents</li>
+        <li>Driver's license or state ID</li>
+    </ul>
+
+
+
+    <!-- ============================================================ -->
+    <!-- 2. INCOME DOCUMENTS -->
+    <!-- ============================================================ -->
+    <h4 style="margin-top: 20px; text-decoration: underline;">2. Income Documents</h4>
+
+    <ul style="margin-left: 18px;">
+
+        {% for section in summary_data.sections %}
+            {% if section.key == "wages_and_employment" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.employer_name }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "interest_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }}
+                        {% if item.account_number %}(Account {{ item.account_number }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "dividend_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }}
+                        {% if item.account_number %}(Account {{ item.account_number }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "brokerage_statement_details" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }}
+                        {% if item.account_number %}(Account {{ item.account_number }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "1099b_proceeds" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }} (1099-B)
+                    </li>
+                {% endfor %}
+            {% elif section.key == "ira_distributions" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.payer_name }} (IRA Distribution)
+                    </li>
+                {% endfor %}
+            {% elif section.key == "partnership_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – K-1 from {{ item.entity_name }}
+                        {% if item.employer_id %}(EIN {{ item.employer_id }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "s_corp_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – S-Corp K-1 from {{ item.entity_name }}
+                        {% if item.employer_id %}(EIN {{ item.employer_id }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "estate_trust_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – Estate/Trust K-1 from {{ item.entity_name }}
+                        {% if item.employer_id %}(EIN {{ item.employer_id }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "remic_income" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – REMIC K-1 from {{ item.entity_name }}
+                        {% if item.employer_id %}(EIN {{ item.employer_id }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "state_tax_refunds" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – State tax refund ({{ item.state }})
+                    </li>
+                {% endfor %}
+            {% elif section.key == "social_security_benefits" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – SSA-1099 Social Security benefits
+                    </li>
+                {% endfor %}
+            {% elif section.key == "nonemployee_compensation" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.nature_source }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "miscellaneous_information" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.nature_source }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "payment_card_1099k" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.nature_source }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "qualified_education_1099q" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.nature_source }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "rental_and_royalty_expenses" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.description }}
+                        {% if item.location_of_property %}(Property: {{ item.location_of_property }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "rental_and_royalty_property_equipment" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.description }}
+                        {% if item.location_of_property %}(Property: {{ item.location_of_property }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "business_grouped" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.business_name }}
+                    </li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+    </ul>
+
+
+
+    <!-- ============================================================ -->
+    <!-- 3. DEDUCTIONS & CREDITS -->
+    <!-- ============================================================ -->
+    <h4 style="margin-top: 20px; text-decoration: underline;">3. Deductions &amp; Credits</h4>
+
+    <ul style="margin-left: 18px;">
+
+        {% for section in summary_data.sections %}
+            {% if section.key == "mortgage_interest" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – Mortgage interest from {{ item.paid_to }}
+                        {% if item.account_number %}(Account {{ item.account_number }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "itemized_deductions_medical_taxes" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.description }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "contributions" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – Donation to {{ item.organization_description }}
+                        {% if item.contribution_type %}({{ item.contribution_type }}){% endif %}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "tuition_statement_1098t" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.student_name|default:"Student"|hide_tsj_not_specified }} – Tuition Statement (1098-T) from {{ item.institution }}
+                    </li>
+                {% endfor %}
+            {% elif section.key == "student_loan_interest" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – Student Loan Interest (1098-E)
+                    </li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+    </ul>
+
+
+
+    <!-- ============================================================ -->
+    <!-- 4. INVESTMENTS, RETIREMENT & MISC -->
+    <!-- ============================================================ -->
+    <h4 style="margin-top: 20px; text-decoration: underline;">
+        4. Investments, Retirement &amp; Miscellaneous
+    </h4>
+
+    <ul style="margin-left: 18px;">
+
+        {% for section in summary_data.sections %}
+            {% if section.key == "other_tax_forms" %}
+                {% for item in section.items %}
+                    <li>
+                        <strong>{{ section.title }}</strong> –
+                        {{ item.owner|hide_tsj_not_specified }} – {{ item.nature_source }}
+                    </li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+    </ul>
+
+
+
+    <!-- ============================================================ -->
+    <!-- 5. ADDITIONAL REQUIREMENTS (CUSTOM FIELDS) -->
+    <!-- ============================================================ -->
+    {% if summary_data.custom_fields %}
+    <h4 style="margin-top: 20px; text-decoration: underline;">
+        5. Additional Requirements
+    </h4>
+
+    <ul style="margin-left: 18px;">
+        {% for item in summary_data.custom_fields %}
+            <li>
+                <strong>{{ item.name }}</strong> – {{ item.value }}
+            </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+
+
+    <!-- Footer -->
+    <p style="margin-top: 20px;">
+        Once all required documents are uploaded, our team will begin preparing your
+        {{ summary_data.tax_year }} tax return.
+    </p>
+
+    <p>Thank you for choosing Virtue CPAs & Advisors.</p>
+
+    <p>
+        <strong>Jeet Chaudhary</strong><br>
+        COO<br>
+        407-495-6829<br>
+        <a href="mailto:Jeetc@virtuecpas.com">Jeetc@virtuecpas.com</a><br>
+        www.virtuecpas.com<br>
+        11675 Rainwater Drive, Suite 150, Alpharetta, GA 30009
+    </p>
+
+    <p style="font-size: 11px; color: #777; margin-top: 25px;">
+        <strong>Disclaimer:</strong> This email and attachments may contain confidential information…
+    </p>
+
+    {{ tracking_pixel|safe }}
+
+</body>
+</html>

@@ -1,0 +1,899 @@
+{% extends 'tax_extractor/base.html' %}
+
+{% block title %}Extraction Results{% endblock %}
+
+{% block content %}
+
+<div class="bg-white rounded-xl shadow-lg p-8">
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        {% if data and data.0.data.personal_information and data.0.data.personal_information.taxpayer %}
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+                {{ data.0.data.personal_information.taxpayer.first_name }} {{ data.0.data.personal_information.taxpayer.last_name }}
+            </h2>
+        {% else %}
+            <h2 class="text-3xl font-bold text-gray-800 mb-2 text-red-600">[Missing Taxpayer Info]</h2>
+        {% endif %}
+
+        {% if current_year and previous_year %}
+            <p class="mt-2 text-blue-600 font-medium">
+                Tax Year: {{ current_year }} (Previous: {{ previous_year }})
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="flex gap-2">
+        <button onclick="showEmailModal()"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all">
+            <span>Send Email</span>
+        </button>
+
+        <a href="{% url 'view_summary' document.id %}"
+           class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all no-underline">
+            <span>View Summary</span>
+        </a>
+
+        <!-- <a href="{% url 'download_json' document.id %}"
+           class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-all no-underline">
+            <span>Download JSON</span>
+        </a> -->
+    </div>
+</div>
+
+
+
+<!-- PDF Management Interface -->
+<div class="mb-8 p-6 bg-blue-50 rounded-lg border-l-4 border-blue-600">
+    <h3 class="text-blue-800 mb-4 font-semibold">PDF Classification Manager</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sorted PDFs -->
+        <div class="bg-white p-4 rounded-lg border">
+            <h4 class="text-green-700 font-medium mb-3 flex items-center gap-2">
+                <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                Sorted PDFs
+            </h4>
+            <div id="sortedPdfs" class="space-y-2 max-h-60 overflow-y-auto">
+                <div class="text-gray-500 text-sm">Loading...</div>
+            </div>
+        </div>
+        
+        <!-- Unsorted PDFs -->
+        <div class="bg-white p-4 rounded-lg border">
+            <h4 class="text-orange-700 font-medium mb-3 flex items-center gap-2">
+                <span class="w-3 h-3 bg-orange-500 rounded-full"></span>
+                Unsorted PDFs
+            </h4>
+            <div id="unsortedPdfs" class="space-y-2 max-h-60 overflow-y-auto">
+                <div class="text-gray-500 text-sm">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    {% for page in data %}
+    {% if not page.data.extraction_skipped %}
+    <div class="mb-8 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-600">
+        <h3 class="text-blue-600 mb-4 flex items-center gap-2">
+            {% if not page.data.extraction_error and page.data.personal_information or page.data.dependents_and_wages or page.data.interest_income or page.data.dividend_income or page.data.brokerage_statement_details or page.data.ira_distributions or page.data.other_income or page.data.rental_and_royalty_income or page.data.rental_and_royalty_expenses or page.data.rental_and_royalty_property_equipment_depletion or page.data.partnership_income or page.data.s_corp_income or page.data.estate_trust_income or page.data.remic_income or page.data.social_security_benefits or page.data.real_estate_taxes or page.data.mortgage_interest or page.data.medical_dental_expenses or page.data.other_medical_expenses or page.data.other_taxes_paid or page.data.investment_interest_expense or page.data.state_tax_refunds or page.data.student_loan_interest or page.data.education_expenses or page.data.business_income_and_cost_of_goods_sold or page.data.business_expenses_and_property_equipment or page.data.business_vehicle_and_listed_property or page.data.contributions %}
+            <span>Page {{ page.page }}</span>
+            {% endif %}
+        </h3>
+
+        {% if page.data.extraction_error %}
+        <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-6 flex items-center gap-3">
+            <div>
+                <strong class="text-red-800">Error:</strong> <span class="text-red-700">{{ page.data.error_message }}</span>
+            </div>
+        </div>
+        {% else %}
+
+        {# Personal Information #}
+        {% if page.data.personal_information %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Personal Information</h4>
+            <div class="bg-white p-4 rounded-md border border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="mb-2"><strong class="text-blue-600">Taxpayer:</strong> {{ page.data.personal_information.taxpayer.first_name }} {{ page.data.personal_information.taxpayer.last_name }}</p>
+                        <p><strong class="text-gray-600">DOB:</strong> {{ page.data.personal_information.taxpayer.dob }}</p>
+                    </div>
+                    {% if page.data.personal_information.spouse.first_name %}
+                    <div>
+                        <p class="mb-2"><strong class="text-blue-600">Spouse:</strong> {{ page.data.personal_information.spouse.first_name }} {{ page.data.personal_information.spouse.last_name }}</p>
+                        <p><strong class="text-gray-600">DOB:</strong> {{ page.data.personal_information.spouse.dob }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Dependents & Wages #}
+        {% if page.data.dependents_and_wages %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Dependents & Wages</h4>
+            {% for dep in page.data.dependents_and_wages %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if dep.first_name %}
+                    <p class="font-semibold text-blue-600 mb-2">{{ dep.first_name }} {{ dep.last_name }}</p>
+                    {% if dep.ssn %}<p class="text-sm"><strong>SSN:</strong> {{ dep.ssn }}</p>{% endif %}
+                    {% if dep.dob %}<p class="text-sm"><strong>DOB:</strong> {{ dep.dob }}</p>{% endif %}
+                    {% if dep.relationship %}<p class="text-sm"><strong>Relationship:</strong> {{ dep.relationship }}</p>{% endif %}
+                {% endif %}
+                {% if dep.employer_name %}
+                    <p class="mt-2"><strong>Employer:</strong> {{ dep.employer_name }}</p>
+                    {% if dep.ts %}<p class="text-sm"><strong>TS:</strong> {{ dep.ts }}</p>{% endif %}
+                    {% if dep.taxable_wages %}<p class="text-sm"><strong>Taxable Wages:</strong> ${{ dep.taxable_wages }}</p>{% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Interest Income #}
+        {% if page.data.interest_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Interest Income (1099-INT)</h4>
+            {% for item in page.data.interest_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.payer_name %}<p><strong>Payer:</strong> {{ item.payer_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.account_number %}<p><strong>Account:</strong> {{ item.account_number }}</p>{% endif %}
+                {% if item.interest_income %}<p><strong>Interest Income:</strong> ${{ item.interest_income }}</p>{% endif %}
+                {% if item.us_bonds_obligations %}<p><strong>US Bonds/Obligations:</strong> ${{ item.us_bonds_obligations }}</p>{% endif %}
+                {% if item.tax_exempt_interest %}<p><strong>Tax Exempt Interest:</strong> ${{ item.tax_exempt_interest }}</p>{% endif %}
+                {% if item.prior_year_amount %}<p><strong>Previous Year Amount:</strong> ${{ item.prior_year_amount }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Dividend Income #}
+        {% if page.data.dividend_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Dividend Income (1099-DIV)</h4>
+            {% for item in page.data.dividend_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.payer_name %}<p><strong>Payer:</strong> {{ item.payer_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.account_number %}<p><strong>Account:</strong> {{ item.account_number }}</p>{% endif %}
+                {% if item.box_1a_ordinary_dividends %}<p><strong>Ordinary Dividends (Box 1a):</strong> ${{ item.box_1a_ordinary_dividends }}</p>{% endif %}
+                {% if item.box_1b_qualified_dividends %}<p><strong>Qualified Dividends (Box 1b):</strong> ${{ item.box_1b_qualified_dividends }}</p>{% endif %}
+                {% if item.box_2a_capital_gain %}<p><strong>Capital Gain (Box 2a):</strong> ${{ item.box_2a_capital_gain }}</p>{% endif %}
+                {% if item.us_bond_interest %}<p><strong>US Bond Interest:</strong> ${{ item.us_bond_interest }}</p>{% endif %}
+                {% if item.tax_exempt_interest %}<p><strong>Tax Exempt Interest:</strong> ${{ item.tax_exempt_interest }}</p>{% endif %}
+                {% if item.prior_year_amount %}<p><strong>Previous Year Amount:</strong> ${{ item.prior_year_amount }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Brokerage Statement Details #}
+        {% if page.data.brokerage_statement_details %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Brokerage Statement Details (Form 1099-B / Consolidated 1099)</h4>
+            {% for item in page.data.brokerage_statement_details %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.payer_name %}<p><strong>Payer/Broker:</strong> {{ item.payer_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.account_number %}<p><strong>Account:</strong> {{ item.account_number }}</p>{% endif %}
+                {% if item.information_included %}<p><strong>Information Included:</strong> {{ item.information_included }}</p>{% endif %}
+                {% if item.interest_income %}<p><strong>Interest Income:</strong> ${{ item.interest_income }}</p>{% endif %}
+                {% if item.us_bonds_obligations %}<p><strong>US Bonds & Obligations:</strong> ${{ item.us_bonds_obligations }}</p>{% endif %}
+                {% if item.code %}<p><strong>Code:</strong> {{ item.code }}</p>{% endif %}
+                {% if item.tax_exempt_interest %}<p><strong>Tax-Exempt Interest:</strong> ${{ item.tax_exempt_interest }}</p>{% endif %}
+                {% if item.box_1a_total_ordinary_dividends %}<p><strong>Box 1a Ordinary Dividends:</strong> ${{ item.box_1a_total_ordinary_dividends }}</p>{% endif %}
+                {% if item.box_1b_qualified_dividends %}<p><strong>Box 1b Qualified Dividends:</strong> ${{ item.box_1b_qualified_dividends }}</p>{% endif %}
+                {% if item.box_2a_total_capital_gain %}<p><strong>Box 2a Capital Gain Dist.:</strong> ${{ item.box_2a_total_capital_gain }}</p>{% endif %}
+                {% if item.us_bond_interest_percent %}<p><strong>US Bond Interest %:</strong> {{ item.us_bond_interest_percent }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# IRA Distributions / 1099-R #}
+        {% if page.data.ira_distributions %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">IRA Distributions (1099-R)</h4>
+            {% for item in page.data.ira_distributions %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.payer_name %}<p><strong>Payer:</strong> {{ item.payer_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.account_number %}<p><strong>Account:</strong> {{ item.account_number }}</p>{% endif %}
+                {% if item.gross_distributions %}<p><strong>Gross Distributions:</strong> ${{ item.gross_distributions }}</p>{% endif %}
+                {% if item.taxable_amount %}<p><strong>Taxable Amount:</strong> ${{ item.taxable_amount }}</p>{% endif %}
+                {% if item.federal_tax_withheld %}<p><strong>Federal Tax Withheld:</strong> ${{ item.federal_tax_withheld }}</p>{% endif %}
+                {% if item.state_tax_withheld %}<p><strong>State Tax Withheld:</strong> ${{ item.state_tax_withheld }}</p>{% endif %}
+                {% if item.is_rollover %}<p><strong>Rollover:</strong> {{ item.is_rollover }}</p>{% endif %}
+                {% if item.prior_year_amount %}<p><strong>Previous Year Amount:</strong> ${{ item.prior_year_amount }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Other Income #}
+        {% if page.data.other_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Other Income</h4>
+            {% for item in page.data.other_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.nature_source %}<p><strong>Source:</strong> {{ item.nature_source }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Rental and Royalty Income #}
+        {% if page.data.rental_and_royalty_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Rental and Royalty Income</h4>
+            <div class="bg-white p-4 rounded-md border border-gray-200">
+                {% if page.data.rental_and_royalty_income.location_of_property %}
+                    <p class="font-semibold text-blue-600 mb-2">{{ page.data.rental_and_royalty_income.location_of_property }}</p>
+                {% endif %}
+                {% if page.data.rental_and_royalty_income.type_of_property %}
+                    <p><strong>Type of Property:</strong> {{ page.data.rental_and_royalty_income.type_of_property }}</p>
+                {% endif %}
+                {% if page.data.rental_and_royalty_income.rents_received %}
+                    <div class="mt-2">
+                        <p class="font-semibold">Rents Received:</p>
+                        {% if page.data.rental_and_royalty_income.rents_received.2024_amount %}
+                            <p class="text-sm ml-4">{{ current_year|default:"2024" }}: ${{ page.data.rental_and_royalty_income.rents_received.2024_amount }}</p>
+                        {% endif %}
+                        {% if page.data.rental_and_royalty_income.rents_received.2023_amount %}
+                            <p class="text-sm ml-4">{{ previous_year|default:"2023" }}: ${{ page.data.rental_and_royalty_income.rents_received.2023_amount }}</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                {% if page.data.rental_and_royalty_income.royalties_received %}
+                    <div class="mt-2">
+                        <p class="font-semibold">Royalties Received:</p>
+                        {% if page.data.rental_and_royalty_income.royalties_received.2024_amount %}
+                            <p class="text-sm ml-4">{{ current_year|default:"2024" }}: ${{ page.data.rental_and_royalty_income.royalties_received.2024_amount }}</p>
+                        {% endif %}
+                        {% if page.data.rental_and_royalty_income.royalties_received.2023_amount %}
+                            <p class="text-sm ml-4">{{ previous_year|default:"2023" }}: ${{ page.data.rental_and_royalty_income.royalties_received.2023_amount }}</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Rental and Royalty Expenses #}
+        {% if page.data.rental_and_royalty_expenses %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Rental and Royalty Expenses</h4>
+            {% for item in page.data.rental_and_royalty_expenses %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.location_of_property %}
+                    <p class="font-semibold text-blue-600 mb-2">{{ item.location_of_property }}</p>
+                {% endif %}
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Rental and Royalty Property Equipment & Depletion #}
+        {% if page.data.rental_and_royalty_property_equipment_depletion %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Rental and Royalty Property, Equipment & Depletion</h4>
+            {% for item in page.data.rental_and_royalty_property_equipment_depletion %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.location_of_property %}
+                    <p class="font-semibold text-blue-600 mb-2">{{ item.location_of_property }}</p>
+                {% endif %}
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Partnership Income (K-1) #}
+        {% if page.data.partnership_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Partnership Income (K-1)</h4>
+            {% for item in page.data.partnership_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.entity_name %}<p><strong>Entity:</strong> {{ item.entity_name }}</p>{% endif %}
+                {% if item.employer_id %}<p><strong>Employer ID:</strong> {{ item.employer_id }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.health_insurance_paid %}<p><strong>Health Insurance Paid:</strong> ${{ item.health_insurance_paid }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# S Corporation Income (K-1) #}
+        {% if page.data.s_corp_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">S Corporation Income (K-1)</h4>
+            {% for item in page.data.s_corp_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.entity_name %}<p><strong>Entity:</strong> {{ item.entity_name }}</p>{% endif %}
+                {% if item.employer_id %}<p><strong>Employer ID:</strong> {{ item.employer_id }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.health_insurance_paid %}<p><strong>Health Insurance Paid:</strong> ${{ item.health_insurance_paid }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Estate and Trust Income (K-1) #}
+        {% if page.data.estate_trust_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Estate and Trust Income (K-1)</h4>
+            {% for item in page.data.estate_trust_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.entity_name %}<p><strong>Entity:</strong> {{ item.entity_name }}</p>{% endif %}
+                {% if item.employer_id %}<p><strong>Employer ID:</strong> {{ item.employer_id }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# REMIC Income (K-1) #}
+        {% if page.data.remic_income %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">REMIC Income (K-1)</h4>
+            {% for item in page.data.remic_income %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.entity_name %}<p><strong>Entity:</strong> {{ item.entity_name }}</p>{% endif %}
+                {% if item.employer_id %}<p><strong>Employer ID:</strong> {{ item.employer_id }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Social Security Benefits #}
+        {% if page.data.social_security_benefits %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Social Security Benefits (SSA-1099)</h4>
+            {% for item in page.data.social_security_benefits %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.benefits_received %}<p><strong>Benefits Received:</strong> ${{ item.benefits_received }}</p>{% endif %}
+                {% if item.benefits_repaid %}<p><strong>Benefits Repaid:</strong> ${{ item.benefits_repaid }}</p>{% endif %}
+                {% if item.medicare_premiums %}<p><strong>Medicare Premiums:</strong> ${{ item.medicare_premiums }}</p>{% endif %}
+                {% if item.federal_withheld %}<p><strong>Federal Withheld:</strong> ${{ item.federal_withheld }}</p>{% endif %}
+                {% if item.state_withheld %}<p><strong>State Withheld:</strong> ${{ item.state_withheld }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Real Estate Taxes #}
+        {% if page.data.real_estate_taxes %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Real Estate Taxes</h4>
+            {% for item in page.data.real_estate_taxes %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Mortgage Interest #}
+        {% if page.data.mortgage_interest %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Mortgage Interest (Form 1098)</h4>
+            {% for item in page.data.mortgage_interest %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.paid_to %}<p><strong>Paid To:</strong> {{ item.paid_to }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.account_number %}<p><strong>Account:</strong> {{ item.account_number }}</p>{% endif %}
+                {% if item.form_1098_received %}<p><strong>Form 1098 Received:</strong> {{ item.form_1098_received }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Medical and Dental Expenses #}
+        {% if page.data.medical_dental_expenses %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Medical and Dental Expenses</h4>
+            {% for item in page.data.medical_dental_expenses %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Other Medical Expenses #}
+        {% if page.data.other_medical_expenses %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Other Medical Expenses</h4>
+            {% for item in page.data.other_medical_expenses %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Other Taxes Paid #}
+        {% if page.data.other_taxes_paid %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Other Taxes Paid</h4>
+            {% for item in page.data.other_taxes_paid %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.description %}<p><strong>Description:</strong> {{ item.description }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Investment Interest Expense #}
+        {% if page.data.investment_interest_expense %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Investment Interest Expense</h4>
+            {% for item in page.data.investment_interest_expense %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.paid_to %}<p><strong>Paid To:</strong> {{ item.paid_to }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# State Tax Refunds #}
+        {% if page.data.state_tax_refunds %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">State Tax Refunds (1099-G)</h4>
+            {% for item in page.data.state_tax_refunds %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.state %}<p><strong>State:</strong> {{ item.state }}</p>{% endif %}
+                {% if item.city %}<p><strong>City:</strong> {{ item.city }}</p>{% endif %}
+                {% if item.tax_year %}<p><strong>Tax Year:</strong> {{ item.tax_year }}</p>{% endif %}
+                {% if item.state_refund %}<p><strong>State Refund:</strong> ${{ item.state_refund }}</p>{% endif %}
+                {% if item.local_refund %}<p><strong>Local Refund:</strong> ${{ item.local_refund }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Student Loan Interest #}
+        {% if page.data.student_loan_interest %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Student Loan Interest (1098-E)</h4>
+            {% for item in page.data.student_loan_interest %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.nature_source %}<p><strong>Nature/Source:</strong> {{ item.nature_source }}</p>{% endif %}
+                {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Education Expenses #}
+        {% if page.data.education_expenses %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Education Expenses (1098-T)</h4>
+            {% for item in page.data.education_expenses %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.student_name %}<p><strong>Student:</strong> {{ item.student_name }}</p>{% endif %}
+                {% if item.institution %}<p><strong>Institution:</strong> {{ item.institution }}</p>{% endif %}
+                {% if item.tuition_fees %}<p><strong>Tuition & Fees:</strong> ${{ item.tuition_fees }}</p>{% endif %}
+                {% if item.scholarships_grants %}<p><strong>Scholarships/Grants:</strong> ${{ item.scholarships_grants }}</p>{% endif %}
+                {% if item.box_numbers %}<p><strong>Box Numbers:</strong> {{ item.box_numbers }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Business Income and Expenses - Income and Cost of Goods Sold #}
+        {% if page.data.business_income_and_cost_of_goods_sold %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Business Income and Expenses - Income and Cost of Goods Sold</h4>
+            {% for item in page.data.business_income_and_cost_of_goods_sold %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.business_name %}<p class="font-semibold text-blue-600 mb-2">{{ item.business_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.ein %}<p><strong>EIN:</strong> {{ item.ein }}</p>{% endif %}
+                {% if item.business_address %}<p><strong>Address:</strong> {{ item.business_address }}</p>{% endif %}
+                {% if item.accounting_method %}<p><strong>Accounting Method:</strong> {{ item.accounting_method }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Business Income and Expenses - Expenses and Property Equipment #}
+        {% if page.data.business_expenses_and_property_equipment %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Business Income and Expenses - Expenses and Property & Equipment</h4>
+            {% for item in page.data.business_expenses_and_property_equipment %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.business_name %}<p class="font-semibold text-blue-600 mb-2">{{ item.business_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.property_description %}<p><strong>Property:</strong> {{ item.property_description }}</p>{% endif %}
+                {% if item.date_acquired %}<p><strong>Date Acquired:</strong> {{ item.date_acquired }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Business Income and Expenses - Vehicle and Listed Property #}
+        {% if page.data.business_vehicle_and_listed_property %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Business Income and Expenses - Vehicle and Listed Property</h4>
+            {% for item in page.data.business_vehicle_and_listed_property %}
+            <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                {% if item.business_name %}<p class="font-semibold text-blue-600 mb-2">{{ item.business_name }}</p>{% endif %}
+                {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                {% if item.asset_description %}<p><strong>Asset:</strong> {{ item.asset_description }}</p>{% endif %}
+                {% if item.date_placed_in_service %}<p><strong>Date Placed in Service:</strong> {{ item.date_placed_in_service }}</p>{% endif %}
+                {% if item.business_use_percentage %}<p><strong>Business Use %:</strong> {{ item.business_use_percentage }}</p>{% endif %}
+                {% if item.depreciation_method %}<p><strong>Depreciation Method:</strong> {{ item.depreciation_method }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Contributions #}
+        {% if page.data.contributions %}
+        <div class="mb-6">
+            <h4 class="text-gray-800 mb-3 font-semibold">Charitable Contributions 🛑</h4>
+            
+            {# Cash Contributions (100% limit) #}
+            {% if page.data.contributions.cash_100_percent_limit %}
+            <div class="mb-4">
+                <h5 class="text-blue-600 font-medium mb-2">Cash Contributions (100% limit)</h5>
+                {% for item in page.data.contributions.cash_100_percent_limit %}
+                <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                    {% if item.organization_description %}<p><strong>Organization:</strong> {{ item.organization_description }}</p>{% endif %}
+                    {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                    {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                    {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Cash Contributions (50% limit) #}
+            {% if page.data.contributions.cash_50_percent_limit %}
+            <div class="mb-4">
+                <h5 class="text-blue-600 font-medium mb-2">Cash Contributions (50% limit)</h5>
+                {% for item in page.data.contributions.cash_50_percent_limit %}
+                <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                    {% if item.organization_description %}<p><strong>Organization:</strong> {{ item.organization_description }}</p>{% endif %}
+                    {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                    {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                    {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Noncash Contributions #}
+            {% if page.data.contributions.noncash_contributions %}
+            <div>
+                <h5 class="text-blue-600 font-medium mb-2">Noncash Contributions</h5>
+                {% for item in page.data.contributions.noncash_contributions %}
+                <div class="bg-white p-4 rounded-md border border-gray-200 mb-3">
+                    {% if item.organization_description %}<p><strong>Organization:</strong> {{ item.organization_description }}</p>{% endif %}
+                    {% if item.tsj %}<p><strong>TSJ:</strong> {{ item.tsj }}</p>{% endif %}
+                    {% if item.method_of_valuation %}<p><strong>Valuation Method:</strong> {{ item.method_of_valuation }}</p>{% endif %}
+                    {% if item.amount_2024 %}<p><strong>{{ current_year|default:"2024" }} Amount:</strong> ${{ item.amount_2024 }}</p>{% endif %}
+                    {% if item.amount_2023 %}<p><strong>{{ previous_year|default:"2023" }} Amount:</strong> ${{ item.amount_2023 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+<div class="text-center mt-8">
+    <a href="{% url 'document_list' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-white text-blue-600 border-2 border-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all no-underline">
+        <span>Back to Documents</span>
+    </a>
+</div>
+
+<!-- Form Type Selection Modal -->
+<div id="formTypeModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white p-8 rounded-xl max-w-md w-11/12 shadow-2xl">
+        <h3 class="mb-6 text-gray-800 text-xl font-semibold">Select Form Type</h3>
+        <div class="mb-6">
+            <label class="block mb-2 font-semibold text-gray-800" for="formType">Form Type</label>
+            <select id="formType" class="w-full px-3 py-3 border-2 border-gray-200 rounded-lg text-base focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition-all">
+                <option value="">Select form type...</option>
+                <option value="w-2">W-2 (Wage and Tax Statement)</option>
+                <option value="1099-int">1099-INT (Interest Income)</option>
+                <option value="1099-div">1099-DIV (Dividends and Distributions)</option>
+                <option value="1099-r">1099-R (Distributions From Pensions)</option>
+                <option value="1099-b">1099-B (Proceeds From Broker)</option>
+                <option value="1099-g">1099-G (Government Payments)</option>
+                <option value="1099-misc">1099-MISC (Miscellaneous Income)</option>
+                <option value="1099-nec">1099-NEC (Nonemployee Compensation)</option>
+                <option value="ssa-1099">SSA-1099 (Social Security Benefits)</option>
+                <option value="1098">1098 (Mortgage Interest Statement)</option>
+                <option value="1098-t">1098-T (Tuition Statement)</option>
+                <option value="1098-e">1098-E (Student Loan Interest)</option>
+                <option value="k-1">K-1 (Partner's Share of Income)</option>
+                <option value="5498">5498 (IRA Contribution Information)</option>
+                <option value="brokerage">Brokerage Statement</option>
+                <option value="unknown">Unknown/Other</option>
+            </select>
+            <input type="hidden" id="moveFilename" value="">
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="movePdfWithFormType()" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-600/30 transition-all">
+                <span>Move to Sorted</span>
+            </button>
+            <button onclick="closeFormTypeModal()" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-gray-600 border-2 border-gray-300 font-semibold rounded-lg hover:bg-gray-50 transition-all">
+                <span>Cancel</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Email Modal -->
+<div id="emailModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white p-8 rounded-xl max-w-md w-11/12 shadow-2xl">
+        <h3 class="mb-6 text-gray-800 text-xl font-semibold">Send Tax Report via Email</h3>
+        <div class="mb-6">
+            <label class="block mb-2 font-semibold text-gray-800" for="recipientEmail">Recipient Email Address</label>
+            <input type="email" id="recipientEmail" class="w-full px-3 py-3 border-2 border-gray-200 rounded-lg text-base focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition-all" placeholder="Enter email address" value="{{ user.email }}" required>
+        </div>
+        <div id="emailStatus" class="my-4 hidden"></div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="sendEmail()" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all" id="sendBtn">
+                <span>Send Email</span>
+            </button>
+            <button onclick="closeEmailModal()" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 border-2 border-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all">
+                <span>Cancel</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showEmailModal() {
+    document.getElementById('emailModal').classList.remove('hidden');
+    document.getElementById('emailModal').classList.add('flex');
+}
+
+function closeEmailModal() {
+    document.getElementById('emailModal').classList.add('hidden');
+    document.getElementById('emailModal').classList.remove('flex');
+    document.getElementById('emailStatus').classList.add('hidden');
+}
+
+function showStatus(message, isSuccess) {
+    const statusDiv = document.getElementById('emailStatus');
+    statusDiv.classList.remove('hidden');
+    statusDiv.className = isSuccess ? 'bg-green-50 border-l-4 border-green-500 p-4 flex items-center gap-3' : 'bg-red-50 border-l-4 border-red-500 p-4 flex items-center gap-3';
+    statusDiv.innerHTML = `<div><strong class="${isSuccess ? 'text-green-800' : 'text-red-800'}">${message}</strong></div>`;
+}
+
+async function sendEmail() {
+    const email = document.getElementById('recipientEmail').value;
+    if (!email || !email.includes('@')) {
+        showStatus('Please enter a valid email address', false);
+        return;
+    }
+
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span>Sending...</span>';
+
+    try {
+        const response = await fetch('{% url "send_email" document.id %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showStatus(data.message, true);
+            setTimeout(closeEmailModal, 2000);
+        } else {
+            showStatus(data.error || 'Failed to send email', false);
+        }
+    } catch (error) {
+        showStatus('Network error: ' + error.message, false);
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span>Send Email</span>';
+    }
+}
+
+document.getElementById('emailModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEmailModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEmailModal();
+});
+
+// PDF Management Functions
+let currentTaxpayerName = '';
+
+function loadPdfLists() {
+    if (!currentTaxpayerName) return;
+    
+    fetch(`/tax/get-pdf-lists/${encodeURIComponent(currentTaxpayerName)}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPdfList('sortedPdfs', data.sorted_pdfs, 'sorted');
+                displayPdfList('unsortedPdfs', data.unsorted_pdfs, 'unsorted');
+            } else {
+                document.getElementById('sortedPdfs').innerHTML = '<div class="text-red-500 text-sm">Error loading PDFs</div>';
+                document.getElementById('unsortedPdfs').innerHTML = '<div class="text-red-500 text-sm">Error loading PDFs</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading PDF lists:', error);
+            document.getElementById('sortedPdfs').innerHTML = '<div class="text-red-500 text-sm">Error loading PDFs</div>';
+            document.getElementById('unsortedPdfs').innerHTML = '<div class="text-red-500 text-sm">Error loading PDFs</div>';
+        });
+}
+
+function displayPdfList(containerId, pdfs, type) {
+    const container = document.getElementById(containerId);
+    
+    if (!pdfs || pdfs.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 text-sm">No PDFs found</div>';
+        return;
+    }
+    
+    const pdfItems = pdfs.map(pdf => {
+        const actionButton = type === 'sorted' 
+            ? `<button onclick="movePdf('${pdf.filename}', 'sorted', 'unsorted')" class="text-orange-600 hover:text-orange-800 text-xs" title="Move to Unsorted">→ Unsorted</button>`
+            : `<button onclick="showFormTypeModal('${pdf.filename}')" class="text-green-600 hover:text-green-800 text-xs" title="Classify & Move to Sorted">→ Sorted</button>`;
+        
+        return `
+            <div class="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                <span class="truncate flex-1" title="${pdf.filename}">${pdf.filename}</span>
+                ${actionButton}
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = pdfItems;
+}
+
+function showFormTypeModal(filename) {
+    document.getElementById('moveFilename').value = filename;
+    document.getElementById('formTypeModal').classList.remove('hidden');
+    document.getElementById('formTypeModal').classList.add('flex');
+}
+
+function closeFormTypeModal() {
+    document.getElementById('formTypeModal').classList.add('hidden');
+    document.getElementById('formTypeModal').classList.remove('flex');
+    document.getElementById('formType').value = '';
+}
+
+function movePdfWithFormType() {
+    const filename = document.getElementById('moveFilename').value;
+    const formType = document.getElementById('formType').value;
+    
+    if (!formType) {
+        alert('Please select a form type');
+        return;
+    }
+    
+    movePdf(filename, 'unsorted', 'sorted', formType);
+    closeFormTypeModal();
+}
+
+function movePdf(filename, fromFolder, toFolder, formType = null) {
+    const data = {
+        filename: filename,
+        from_folder: fromFolder,
+        to_folder: toFolder,
+        taxpayer_name: currentTaxpayerName
+    };
+    
+    if (formType) {
+        data.form_type = formType;
+    }
+    
+    fetch('/tax/move-pdf/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadPdfLists(); // Refresh the lists
+            showNotification(data.message, 'success');
+        } else {
+            showNotification(data.error || 'Failed to move PDF', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error moving PDF:', error);
+        showNotification('Error moving PDF', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Extract taxpayer name from the page
+    const taxpayerElement = document.querySelector('h2');
+    if (taxpayerElement && taxpayerElement.textContent.trim() !== '[Missing Taxpayer Info]') {
+        currentTaxpayerName = taxpayerElement.textContent.trim();
+        loadPdfLists();
+    }
+});
+</script>
+
+{% endblock %}

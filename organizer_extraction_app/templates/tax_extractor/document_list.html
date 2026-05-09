@@ -1,0 +1,526 @@
+{% extends 'tax_extractor/base.html' %}
+{% load custom_filters %}
+{% block title %}Organizer Extraction{% endblock %}
+{% block content %}
+
+<!-- User Management Section (Admin Only) -->
+{% if can_manage_users %}
+<div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg p-6 mb-6">
+  <div class="flex justify-between items-center">
+    <div class="text-white">
+      <h2 class="text-2xl font-bold mb-2">👥 User Management</h2>
+      <p class="text-purple-100">Manage users, roles, and permissions</p>
+    </div>
+    <a href="{% url 'user_list' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-purple-50 hover:shadow-lg transition-all no-underline">
+      <span>Manage Users</span>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Documents Section -->
+<div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">Client Organizers</h1>
+      <p class="text-gray-600">View and manage your uploaded Organizers ({{ total_documents }} total)</p>
+    </div>
+    <div class="flex gap-3 items-center">
+      <!-- Search Form -->
+      <form method="get" class="flex gap-2 items-center">
+        <input type="text" name="search" value="{{ search_query }}" placeholder="Search taxpayer..." class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-48">
+        <button type="submit" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all">
+          Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'document_list' %}" class="px-3 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition-all no-underline">
+          Clear
+        </a>
+        {% endif %}
+      </form>
+      <a href="{% url 'upload_document' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all no-underline">
+        <span>Upload New</span>
+      </a>
+    </div>
+  </div>
+
+  {% if page_obj %}
+  <div class="overflow-x-auto rounded-xl border border-gray-200">
+    <table class="w-full border-collapse">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Taxpayer Name</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Upload Date-Time</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Status</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Pages Processed</th>
+
+          <!-- NEW STATIC COLUMNS -->
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Unsorted</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Sorted</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Progress</th>
+
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Email Opened</th>
+          <th class="px-4 py-4 text-center font-semibold text-gray-800 border-b-2 border-gray-200 min-w-48">Folder Name</th>
+          <th class="px-4 py-4 text-center font-semibold text-gray-800 border-b-2 border-gray-200" colspan="2">Forms App Processing</th>
+          <th class="px-4 py-4 text-left font-semibold text-gray-800 border-b-2 border-gray-200">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for doc in page_obj %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-4 border-b border-gray-100">
+            <strong>{{ doc.get_display_name }}</strong>
+          </td>
+
+          <td class="px-4 py-4 border-b border-gray-100">
+            {{ doc.uploaded_at|date:"M d, Y H:i" }}
+          </td>
+
+          <td class="px-4 py-4 border-b border-gray-100">
+            <span id="status-{{ doc.id }}" class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold 
+              {% if doc.status == 'pending' %}bg-yellow-500 text-white
+              {% elif doc.status == 'processing' %}bg-blue-500 text-white
+              {% elif doc.status == 'completed' %}bg-green-500 text-white
+              {% elif doc.status == 'failed' %}bg-red-500 text-white
+              {% endif %}">
+              {% if doc.status == 'pending' %}⏳ Pending
+              {% elif doc.status == 'processing' %}⚙️ Processing
+              {% elif doc.status == 'completed' %}✓ Completed
+              {% elif doc.status == 'failed' %}✗ Failed
+              {% endif %}
+            </span>
+          </td>
+
+          <td class="px-4 py-4 border-b border-gray-100">
+            <span id="pages-{{ doc.id }}">
+              {% if doc.status == 'completed' %}
+                {{ doc.extracted_data.pages_processed }} pages
+              {% else %}
+                -
+              {% endif %}
+            </span>
+          </td>
+
+          <!-- NEW STATIC COLUMNS -->
+
+          <!-- Unsorted -->
+          <td class="px-4 py-4 border-b border-gray-100">
+            <span class="px-3 py-1 text-white bg-red-500 rounded-md text-sm font-semibold">
+              {{ doc.unsorted_count }}
+            </span>
+          </td>
+
+          <!-- Sorted -->
+          <td class="px-4 py-4 border-b border-gray-100">
+            <span class="px-3 py-1 text-white bg-green-500 rounded-md text-sm font-semibold">
+              {{ doc.sorted_count }}
+            </span>
+          </td>
+
+          <!-- Progress Bar -->
+          <td class="px-4 py-4 border-b border-gray-100">
+            <div class="w-full bg-gray-200 rounded-full h-3">
+              <div class="bg-blue-600 h-3 rounded-full" style="width: {{ doc.progress_percent }}%;"></div>
+            </div>
+            <span class="text-sm text-gray-700 font-semibold">{{ doc.progress_percent }}%</span>
+          </td>
+
+          <!-- Email Opened -->
+          <td class="px-4 py-4 border-b border-gray-100 text-center">
+            <span id="email-status-{{ doc.id }}">
+              {% if doc.email_automation %}
+                {% with pending_email_track=doc.email_automation.document.email_tracking.first %}
+                  {% if pending_email_track %}
+                    {% if pending_email_track.is_opened %}
+                      <span class="inline-flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 rounded-full text-xl">
+                        ✓
+                      </span>
+                    {% else %}
+                      <span class="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full text-xl">
+                        ✗
+                      </span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-gray-400 text-sm">-</span>
+                  {% endif %}
+                {% endwith %}
+              {% else %}
+                <span class="text-gray-400 text-sm">-</span>
+              {% endif %}
+            </span>
+          </td>
+
+          <!-- Folder Name Display -->
+          <td class="px-4 py-4 border-b border-gray-100">
+            <div class="bg-gray-100 px-3 py-2 rounded-lg border border-gray-300 min-w-max">
+              <div class="text-sm font-mono text-gray-800 whitespace-nowrap">
+                upload_{{ doc.get_display_name|folder_name }}
+              </div>
+            </div>
+          </td>
+
+          <!-- Forms App Processing Controls -->
+          <td class="px-4 py-4 border-b border-gray-100" colspan="2">
+            {% if doc.status == 'completed' %}
+            <div class="flex items-center gap-2 justify-center">
+              <button class="forms-approve-btn px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded hover:bg-green-600 transition-all" data-document-id="{{ doc.id }}" data-client-name="{{ doc.get_display_name }}">
+                Approve Forms Processing
+              </button>
+              <button class="forms-deny-btn px-4 py-2 bg-red-500 text-white text-sm font-semibold rounded hover:bg-red-600 transition-all" data-document-id="{{ doc.id }}" data-client-name="{{ doc.get_display_name }}">
+                Deny Forms Processing
+              </button>
+            </div>
+            {% elif doc.status == 'processing' %}
+            <div class="text-sm text-blue-600 font-medium text-center">
+              Processing organizer...
+            </div>
+            {% elif doc.status == 'pending' %}
+            <div class="text-sm text-gray-600 font-medium text-center">
+              Processing organizer...
+            </div>
+            {% elif doc.status == 'failed' %}
+            <div class="text-sm text-red-600 font-medium text-center">
+              Organizer processing failed
+            </div>
+            {% endif %}
+          </td>
+
+          <!-- Actions -->
+          <td class="px-4 py-4 border-b border-gray-100">
+            <div id="actions-{{ doc.id }}">
+              {% if doc.status == 'completed' %}
+                <a href="{% url 'view_results' doc.id %}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border-2 border-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all no-underline text-sm">
+                  View Results
+                </a>
+              {% elif doc.status == 'pending' %}
+                <span class="text-sm text-gray-500">In Queue</span>
+              {% elif doc.status == 'processing' %}
+                <span class="text-sm text-blue-600">Processing...</span>
+              {% elif doc.status == 'failed' %}
+                <span class="text-sm text-red-600">Failed</span>
+              {% endif %}
+            </div>
+          </td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  
+  <!-- Pagination -->
+  <div class="flex justify-center items-center mt-8 space-x-2">
+    {% if page_obj.has_previous %}
+      <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all no-underline">
+        First
+      </a>
+      <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all no-underline">
+        Previous
+      </a>
+    {% endif %}
+    
+    <span class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all no-underline">
+        Next
+      </a>
+      <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all no-underline">
+        Last
+      </a>
+    {% endif %}
+  </div>
+  
+  {% else %}
+  <div class="text-center py-16 px-8">
+    <div class="text-6xl mb-4">📂</div>
+    {% if search_query %}
+    <h3 class="text-gray-600 mb-4 text-xl">
+      No documents found for "{{ search_query }}"
+    </h3>
+    <p class="text-gray-600 mb-8">
+      Try a different search term or clear the search to see all documents
+    </p>
+    <a href="{% url 'document_list' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-600/30 transition-all no-underline">
+      <span>Clear Search</span>
+    </a>
+    {% else %}
+    <h3 class="text-gray-600 mb-4 text-xl">
+      No documents yet
+    </h3>
+    <p class="text-gray-600 mb-8">
+      Upload your first tax document to get started
+    </p>
+    <a href="{% url 'upload_document' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/30 transition-all no-underline">
+      <span>Upload Document</span>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+// Real-time status updates
+let statusInterval;
+
+function updateDocumentStatus() {
+  fetch('/tax/status/')
+    .then(response => response.json())
+    .then(data => {
+      let hasProcessing = false;
+      
+      data.documents.forEach(doc => {
+        const statusElement = document.getElementById(`status-${doc.id}`);
+        const actionsElement = document.getElementById(`actions-${doc.id}`);
+        const pagesElement = document.getElementById(`pages-${doc.id}`);
+        const emailStatusElement = document.getElementById(`email-status-${doc.id}`);
+        
+        if (statusElement) {
+          // Update status badge
+          let statusClass, statusText;
+          
+          switch(doc.status) {
+            case 'pending':
+              statusClass = 'bg-yellow-500 text-white';
+              statusText = '⏳ Pending';
+              hasProcessing = true;
+              break;
+            case 'processing':
+              statusClass = 'bg-blue-500 text-white';
+              statusText = '⚙️ Processing';
+              hasProcessing = true;
+              break;
+            case 'completed':
+              statusClass = 'bg-green-500 text-white';
+              statusText = '✓ Completed';
+              break;
+            case 'failed':
+              statusClass = 'bg-red-500 text-white';
+              statusText = '✗ Failed';
+              break;
+          }
+          
+          statusElement.className = `inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold ${statusClass}`;
+          statusElement.textContent = statusText;
+        }
+        
+        if (actionsElement) {
+          // Update actions
+          let actionsHTML;
+          
+          switch(doc.status) {
+            case 'pending':
+              actionsHTML = '<span class="text-sm text-gray-500">In Queue</span>';
+              break;
+            case 'processing':
+              actionsHTML = '<span class="text-sm text-blue-600">Processing...</span>';
+              break;
+            case 'completed':
+              actionsHTML = `<a href="/tax/results/${doc.id}/" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border-2 border-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all no-underline text-sm">View Results</a>`;
+              break;
+            case 'failed':
+              actionsHTML = '<span class="text-sm text-red-600">Failed</span>';
+              break;
+          }
+          
+          actionsElement.innerHTML = actionsHTML;
+        }
+        
+        // Update form processing cell based on status
+        const processApproveButton = document.querySelector(`[data-document-id="${doc.id}"].process-approve-btn`);
+        if (processApproveButton) {
+          const processCell = processApproveButton.closest('td');
+          if (processCell) {
+            switch(doc.status) {
+              case 'processing':
+                processCell.innerHTML = '<div class="text-sm text-blue-600 font-medium text-center">Processing...</div>';
+                break;
+              case 'completed':
+                processCell.innerHTML = '<div class="text-sm text-green-600 font-medium text-center">✓ Completed</div>';
+                break;
+              case 'failed':
+                processCell.innerHTML = '<div class="text-sm text-red-600 font-medium text-center">✗ Failed</div>';
+                break;
+              case 'pending':
+                processCell.innerHTML = `
+                  <div class="flex items-center gap-2 justify-center">
+                    <button class="process-approve-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded hover:bg-green-600 transition-all" data-document-id="${doc.id}">
+                      Approve
+                    </button>
+                    <button class="process-deny-btn px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded hover:bg-red-600 transition-all" data-document-id="${doc.id}">
+                      Deny
+                    </button>
+                  </div>
+                `;
+                // Re-attach event listeners for new buttons
+                const newApproveBtn = processCell.querySelector('.process-approve-btn');
+                const newDenyBtn = processCell.querySelector('.process-deny-btn');
+                if (newApproveBtn) {
+                  newApproveBtn.addEventListener('click', function() {
+                    approveFormProcessing(this.dataset.documentId);
+                  });
+                }
+                if (newDenyBtn) {
+                  newDenyBtn.addEventListener('click', function() {
+                    denyFormProcessing(this.dataset.documentId);
+                  });
+                }
+                break;
+            }
+          }
+        }
+
+        // Update pages processed
+        if (pagesElement && doc.status === 'completed' && doc.pages_processed) {
+          pagesElement.innerHTML = `${doc.pages_processed} pages`;
+        }
+
+        // Update email status for pending documents email
+        if (emailStatusElement && doc.pending_email_tracking) {
+          let emailHTML;
+          if (doc.pending_email_tracking.is_opened) {
+            const openedDate = new Date(doc.pending_email_tracking.opened_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            emailHTML = `<span class="inline-flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 rounded-full text-xl" title="Pending docs email opened on ${openedDate}">✓</span>`;
+          } else {
+            emailHTML = '<span class="inline-flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full text-xl" title="Pending docs email not opened yet">✗</span>';
+          }
+          emailStatusElement.innerHTML = emailHTML;
+        }
+      });
+      
+      // Stop polling if no documents are processing or pending
+      if (!hasProcessing && statusInterval) {
+        clearInterval(statusInterval);
+        statusInterval = null;
+      }
+    })
+    .catch(error => {
+      console.error('Error checking status:', error);
+    });
+}
+
+// Forms app processing functionality
+document.addEventListener('DOMContentLoaded', function() {
+  const formsApproveButtons = document.querySelectorAll('.forms-approve-btn');
+  const formsDenyButtons = document.querySelectorAll('.forms-deny-btn');
+  
+  formsApproveButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const documentId = this.dataset.documentId;
+      const clientName = this.dataset.clientName;
+      approveFormsProcessing(documentId, clientName);
+    });
+  });
+  
+  formsDenyButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const documentId = this.dataset.documentId;
+      const clientName = this.dataset.clientName;
+      denyFormsProcessing(documentId, clientName);
+    });
+  });
+});
+
+function approveFormsProcessing(documentId, clientName) {
+  if (confirm(`Approve forms app processing for ${clientName}? This will process all files in their upload folder.`)) {
+    fetch(`/tax/process-forms-app/${documentId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken')
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message, 'success');
+        
+        // Update the forms processing cell to show processing
+        const processCell = document.querySelector(`[data-document-id="${documentId}"].forms-approve-btn`).closest('td');
+        if (processCell) {
+          processCell.innerHTML = '<div class="text-sm text-blue-600 font-medium text-center">Processing upload folder...</div>';
+        }
+      } else {
+        showNotification(data.error || 'Failed to start forms processing', 'error');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showNotification('Network error: Failed to start forms processing', 'error');
+    });
+  }
+}
+
+function denyFormsProcessing(documentId, clientName) {
+  if (confirm(`Deny forms app processing for ${clientName}?`)) {
+    showNotification('Forms processing denied', 'info');
+    
+    // Update the forms processing cell to show denied
+    const processCell = document.querySelector(`[data-document-id="${documentId}"].forms-deny-btn`).closest('td');
+    if (processCell) {
+      processCell.innerHTML = '<div class="text-sm text-red-600 font-medium text-center">✗ Forms processing denied</div>';
+    }
+  }
+}
+
+// Start status checking if there are processing/pending documents
+const hasProcessingDocs = document.querySelector('[id^="status-"]');
+if (hasProcessingDocs) {
+  const statusTexts = Array.from(document.querySelectorAll('[id^="status-"]')).map(el => el.textContent);
+  const needsPolling = statusTexts.some(text => text.includes('Pending') || text.includes('Processing'));
+  
+  if (needsPolling) {
+    statusInterval = setInterval(updateDocumentStatus, 3000);
+    setTimeout(() => {
+      if (statusInterval) {
+        clearInterval(statusInterval);
+        statusInterval = null;
+      }
+    }, 600000);
+  }
+}
+
+
+
+function showNotification(message, type = 'info') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+    type === 'success' ? 'bg-green-500 text-white' : 
+    type === 'error' ? 'bg-red-500 text-white' : 
+    'bg-blue-500 text-white'
+  }`;
+  notification.textContent = message;
+  
+  document.body.appendChild(notification);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 3000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (statusInterval) {
+    clearInterval(statusInterval);
+  }
+});
+</script>
+
+{% endblock %}
